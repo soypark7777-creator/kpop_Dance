@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Node / Next.js
+node_modules/
+.next/
+frontend/.next/
+frontend/node_modules/
+frontend/.next-server.log
+frontend/.next-server.err
+
+# Env files
+.env
+.env.*
+!.env.example
+frontend/.env.local
+frontend/.env.local.*
+!frontend/.env.local.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Database / runtime files
+*.sqlite
+*.db
+*.sqlite3
+backend/.backend_test_auth.sqlite
+backend/.dev-test.log
+backend/.dev-test.err
+backend/__pycache__/
+backend/app/__pycache__/
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
+.mplconfig/
+tmp_pose_test.png
+
+# Logs
+*.log
+
+# Build artifacts
+dist/
+build/
+coverage/
