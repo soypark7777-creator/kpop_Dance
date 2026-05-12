@@ -1,12 +1,13 @@
 from datetime import datetime, timezone
+import uuid
 
-from flask import Blueprint, request
+from flask import Blueprint, current_app, request
 from sqlalchemy.orm import selectinload
 
 from ..extensions import db
 from ..models import DanceReference, PracticeSession, SessionFrame, User
 from ..services.analysis_service import serialize_analysis_report, upsert_analysis_report
-from ..services.session_service import create_demo_session, finalize_demo_session, get_demo_state, isoformat, parse_session_id, serialize_dance, serialize_session, serialize_session_frame
+from ..services.session_service import finalize_demo_session, get_demo_state, get_session_by_identifier, isoformat, parse_session_id, serialize_dance, serialize_session, serialize_session_frame
 from ..utils.response import error_response, success_response
 
 
@@ -44,19 +45,13 @@ def start_session():
 
     user = _pick_user(user_id)
     dance = _pick_dance(dance_reference_id)
-    if user is None or dance is None:
-        demo_session = create_demo_session(dance_reference_id)
-        return success_response(
-            data={
-                "session_id": demo_session["id"],
-                "dance_reference": demo_session["dance_reference"],
-                "ws_url": f"http://127.0.0.1:5000/api/stream/live?session_id={demo_session['id']}",
-                "started_at": demo_session["started_at"],
-            },
-            message="session started",
-        )
+    if dance is None:
+        return error_response("dance reference not found", status_code=404, code="DANCE_REFERENCE_NOT_FOUND")
+    if user is None:
+        return error_response("user not found", status_code=404, code="USER_NOT_FOUND")
 
     session = PracticeSession(
+        session_uuid=str(uuid.uuid4()),
         user_id=user.id,
         dance_reference_id=dance.id,
         started_at=datetime.now(timezone.utc),
@@ -67,14 +62,15 @@ def start_session():
     db.session.commit()
 
     session.dance_reference = dance
+    stream_url = f"{current_app.config['API_PUBLIC_BASE_URL']}/api/stream/live?session_id={session.session_uuid}"
     return success_response(
         data={
-            "session_id": str(session.id),
+            "session_id": session.session_uuid,
             "dance_reference": serialize_dance(dance),
-            "ws_url": f"http://127.0.0.1:5000/api/stream/live?session_id={session.id}",
+            "stream_url": stream_url,
             "started_at": isoformat(session.started_at),
         },
-        message="session started",
+        message="세션이 시작되었습니다.",
     )
 
 
@@ -86,7 +82,6 @@ def end_session():
         return error_response("session_id is required", status_code=400, code="INVALID_REQUEST")
 
     session_id_str = str(session_id)
-    parsed_session_id = parse_session_id(session_id_str)
 
     demo_state = get_demo_state(session_id_str)
     if demo_state is not None:
@@ -95,19 +90,24 @@ def end_session():
             return error_response("session not found", status_code=404, code="SESSION_NOT_FOUND")
         return success_response(
             data={
+                "analysis_ready": True,
                 "session": final_state.session,
                 "report": final_state.report,
                 "unlock_avatar_render": final_state.session["unlock_avatar_render"],
             },
-            message="session ended",
+            message="세션이 종료되었습니다.",
         )
 
-    if parsed_session_id is None:
-        return error_response("session not found", status_code=404, code="SESSION_NOT_FOUND")
-
-    session = db.session.get(PracticeSession, parsed_session_id)
+    session = get_session_by_identifier(session_id_str)
     if session is None:
         return error_response("session not found", status_code=404, code="SESSION_NOT_FOUND")
+
+    total_score = payload.get("total_score")
+    if total_score is not None:
+        try:
+            session.total_score = float(total_score)
+        except (TypeError, ValueError):
+            return error_response("total_score must be a number", status_code=400, code="INVALID_REQUEST")
 
     frames = (
         SessionFrame.query.filter_by(session_id=session.id)
@@ -123,11 +123,12 @@ def end_session():
     db.session.refresh(report)
     return success_response(
         data={
+            "analysis_ready": True,
             "session": serialize_session(session),
             "report": serialize_analysis_report(report),
             "unlock_avatar_render": bool(session.unlock_avatar_render),
         },
-        message="session ended",
+        message="세션이 종료되었습니다.",
     )
 
 
@@ -137,12 +138,11 @@ def get_session(session_id: str):
     if demo_state is not None:
         return success_response(data=demo_state.session)
 
-    parsed_session_id = parse_session_id(session_id)
-    if parsed_session_id is None:
-        return error_response("session not found", status_code=404, code="SESSION_NOT_FOUND")
-
     session = (
-        PracticeSession.query.filter_by(id=parsed_session_id)
+        PracticeSession.query.filter(
+            (PracticeSession.session_uuid == session_id)
+            | (PracticeSession.id == parse_session_id(session_id))
+        )
         .options(selectinload(PracticeSession.dance_reference))
         .first()
     )
@@ -157,16 +157,12 @@ def get_session_frames(session_id: str):
     if demo_state is not None:
         return success_response(data=demo_state.frames)
 
-    parsed_session_id = parse_session_id(session_id)
-    if parsed_session_id is None:
-        return error_response("session not found", status_code=404, code="SESSION_NOT_FOUND")
-
-    session_exists = db.session.get(PracticeSession, parsed_session_id)
+    session_exists = get_session_by_identifier(session_id)
     if session_exists is None:
         return error_response("session not found", status_code=404, code="SESSION_NOT_FOUND")
 
     frames = (
-        SessionFrame.query.filter_by(session_id=parsed_session_id)
+        SessionFrame.query.filter_by(session_id=session_exists.id)
         .order_by(SessionFrame.frame_index.asc())
         .all()
     )

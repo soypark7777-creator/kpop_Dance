@@ -254,7 +254,7 @@ def upsert_analysis_report(session: PracticeSession, frames: list[SessionFrame])
     joint_variability = _joint_variability(frames)
 
     payload = build_analysis_payload(
-        str(session.id),
+        session.session_uuid or str(session.id),
         total_score=total_score,
         duration_seconds=duration_seconds,
         frame_scores=frame_scores,

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
+import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -33,6 +34,15 @@ def parse_session_id(session_id: str) -> int | None:
         return int(session_id)
     except (TypeError, ValueError):
         return None
+
+
+def get_session_by_identifier(session_id: str) -> PracticeSession | None:
+    parsed_session_id = parse_session_id(session_id)
+    if parsed_session_id is not None:
+        session = db.session.get(PracticeSession, parsed_session_id)
+        if session is not None:
+            return session
+    return PracticeSession.query.filter_by(session_uuid=str(session_id)).first()
 
 
 def isoformat(value) -> str | None:
@@ -113,8 +123,10 @@ def serialize_user(user: User) -> dict[str, Any]:
 
 def serialize_session(session: PracticeSession) -> dict[str, Any]:
     dance = getattr(session, "dance_reference", None)
+    public_session_id = session.session_uuid or str(session.id)
     return {
         "id": session.id,
+        "session_id": public_session_id,
         "user_id": session.user_id,
         "dance_reference_id": session.dance_reference_id,
         "dance_reference": serialize_dance(dance) if dance else None,
@@ -131,9 +143,13 @@ def serialize_session(session: PracticeSession) -> dict[str, Any]:
 
 
 def serialize_session_frame(frame: SessionFrame) -> dict[str, Any]:
+    public_session_id = str(frame.session_id)
+    session = getattr(frame, "session", None)
+    if session is not None and getattr(session, "session_uuid", None):
+        public_session_id = session.session_uuid
     return {
         "id": frame.id,
-        "session_id": str(frame.session_id),
+        "session_id": public_session_id,
         "frame_index": frame.frame_index,
         "timestamp_seconds": float(frame.timestamp_seconds),
         "pose_json": frame.pose_json or {},
@@ -210,63 +226,9 @@ def build_demo_report(session_id: str, total_score: float = 85.0) -> dict[str, A
 
 
 def create_demo_session(dance_reference_id: int) -> dict[str, Any]:
-    demo_dances = {
-        1: {
-            "id": 1,
-            "title": "Pink Venom",
-            "artist_name": "BLACKPINK",
-            "difficulty": "hard",
-            "duration_seconds": 187,
-            "thumbnail_url": "/mock/thumbs/pink-venom.jpg",
-            "preview_video_url": "/mock/videos/pink-venom-preview.mp4",
-            "reference_json_path": "/storage/dance_reference/pink-venom.json",
-            "created_at": "2024-10-01T00:00:00Z",
-        },
-        2: {
-            "id": 2,
-            "title": "Hype Boy",
-            "artist_name": "NewJeans",
-            "difficulty": "normal",
-            "duration_seconds": 185,
-            "thumbnail_url": "/mock/thumbs/hype-boy.jpg",
-            "preview_video_url": "/mock/videos/hype-boy-preview.mp4",
-            "reference_json_path": "/storage/dance_reference/hype-boy.json",
-            "created_at": "2024-10-05T00:00:00Z",
-        },
-        3: {
-            "id": 3,
-            "title": "Spicy",
-            "artist_name": "aespa",
-            "difficulty": "expert",
-            "duration_seconds": 196,
-            "thumbnail_url": "/mock/thumbs/spicy.jpg",
-            "preview_video_url": None,
-            "reference_json_path": "/storage/dance_reference/spicy.json",
-            "created_at": "2024-10-10T00:00:00Z",
-        },
-        4: {
-            "id": 4,
-            "title": "I AM",
-            "artist_name": "IVE",
-            "difficulty": "normal",
-            "duration_seconds": 212,
-            "thumbnail_url": "/mock/thumbs/i-am.jpg",
-            "preview_video_url": None,
-            "reference_json_path": "/storage/dance_reference/i-am.json",
-            "created_at": "2024-10-15T00:00:00Z",
-        },
-        5: {
-            "id": 5,
-            "title": "Dynamite",
-            "artist_name": "BTS",
-            "difficulty": "easy",
-            "duration_seconds": 199,
-            "thumbnail_url": "/mock/thumbs/dynamite.jpg",
-            "preview_video_url": None,
-            "reference_json_path": "/storage/dance_reference/dynamite.json",
-            "created_at": "2024-10-20T00:00:00Z",
-        },
-    }
+    from .demo_data import DEMO_DANCE_REFERENCES
+
+    demo_dances = {item["id"]: item for item in DEMO_DANCE_REFERENCES}
     dance = demo_dances.get(dance_reference_id)
     if dance is None:
         dance = {
@@ -281,7 +243,7 @@ def create_demo_session(dance_reference_id: int) -> dict[str, Any]:
             "created_at": now_iso(),
         }
 
-    session_id = f"mock_session_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+    session_id = str(uuid.uuid4())
     session = {
         "id": session_id,
         "user_id": 1,
@@ -328,9 +290,11 @@ def serialize_report(report: AnalysisReport | dict[str, Any]) -> dict[str, Any]:
         return report
 
     report_json = report.report_json or {}
+    session = getattr(report, "session", None)
+    public_session_id = getattr(session, "session_uuid", None) or str(report.session_id)
     return {
         "id": report.id,
-        "session_id": str(report.session_id),
+        "session_id": public_session_id,
         "total_score": report_json.get("total_score", 0),
         "weakest_section": report_json.get(
             "weakest_section",
@@ -469,10 +433,10 @@ def get_stream_reference_pose(session_id: str, frame_index: int) -> dict[str, An
         if isinstance(pose, dict):
             return pose
 
-    parsed_session_id = parse_session_id(session_id)
-    if parsed_session_id is not None:
+    session = get_session_by_identifier(session_id)
+    if session is not None:
         frame = (
-            SessionFrame.query.filter_by(session_id=parsed_session_id)
+            SessionFrame.query.filter_by(session_id=session.id)
             .order_by(SessionFrame.frame_index.asc())
             .offset(frame_index)
             .first()

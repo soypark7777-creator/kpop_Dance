@@ -1,7 +1,8 @@
 /**
  * hooks/useWebSocketDance.ts
- * Real-time stream connection manager.
- * Uses EventSource for SSE in production and setInterval mock frames in mock mode.
+ * Real-time dance stream manager.
+ * Contract v1 is SSE: EventSource receives LiveFrameData from GET /api/stream/live.
+ * The file name is kept for compatibility with existing imports.
  */
 
 'use client'
@@ -19,6 +20,7 @@ const RECONNECT_DELAY_MS = 3000
 const MAX_RECONNECT_ATTEMPTS = 5
 
 interface UseWebSocketDanceReturn {
+  /** Opens the SSE stream for a practice session. */
   connect: (sessionId: string) => void
   disconnect: () => void
   connectedSessionId: string | null
@@ -133,6 +135,7 @@ export function useWebSocketDance(): UseWebSocketDanceReturn {
       intentionalDisconnectRef.current = false
       reconnectAttemptsRef.current = 0
       sessionIdRef.current = sessionId
+      // TODO(real API): prefer StartSessionResponse.stream_url if the backend returns a signed stream URL.
       streamUrlRef.current = `${API_BASE}/api/stream/live?session_id=${sessionId}`
 
       if (MOCK_MODE) {

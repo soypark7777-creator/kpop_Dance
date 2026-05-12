@@ -8,6 +8,7 @@ class PracticeSession(TimestampMixin, BaseModel):
     __tablename__ = "practice_sessions"
 
     id = db.Column(db.BigInteger().with_variant(db.Integer, "sqlite"), primary_key=True)
+    session_uuid = db.Column(db.String(36), nullable=False, unique=True, index=True)
     user_id = db.Column(
         db.BigInteger().with_variant(db.Integer, "sqlite"),
         db.ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE"),

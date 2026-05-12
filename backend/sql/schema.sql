@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS dance_references (
 
 CREATE TABLE IF NOT EXISTS practice_sessions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  session_uuid CHAR(36) NOT NULL,
   user_id BIGINT UNSIGNED NOT NULL,
   dance_reference_id BIGINT UNSIGNED NOT NULL,
   started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS practice_sessions (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  UNIQUE KEY uq_session_uuid (session_uuid),
   INDEX idx_session_user_id (user_id),
   INDEX idx_session_dance_ref (dance_reference_id),
   INDEX idx_session_status (session_status),

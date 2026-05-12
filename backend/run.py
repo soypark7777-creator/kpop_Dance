@@ -1,3 +1,5 @@
+import os
+
 from app import create_app
 
 
@@ -5,5 +7,11 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(
+        host=os.getenv("FLASK_HOST", "127.0.0.1"),
+        port=int(os.getenv("FLASK_PORT", "5000")),
+        debug=debug,
+        use_reloader=debug,
+    )
 

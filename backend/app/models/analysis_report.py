@@ -16,3 +16,5 @@ class AnalysisReport(TimestampMixin, BaseModel):
     most_wrong_joints = db.Column(db.JSON, nullable=True)
     average_angle_error = db.Column(db.Numeric(6, 3), nullable=True)
     report_json = db.Column(db.JSON, nullable=True)
+
+    session = db.relationship("PracticeSession", backref=db.backref("analysis_report", uselist=False), lazy="select")

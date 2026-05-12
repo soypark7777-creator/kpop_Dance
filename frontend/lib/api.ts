@@ -1,19 +1,17 @@
 ﻿/**
  * lib/api.ts
  * ?????????????????????????????????????????????????????????????????
- * My Avatar Dance Master ??API ?대씪?댁뼵?? *
- * 援ъ“:
- * - MOCK_MODE=true  ??lib/mock.ts???곗씠??諛섑솚 (諛깆뿏???놁씠 ?숈옉)
- * - MOCK_MODE=false ???ㅼ젣 Flask 諛깆뿏?쒕줈 fetch
+ * My Avatar Dance Master API client.
  *
- * Flask 諛깆뿏???곌껐 ??
- *   .env.local?먯꽌 NEXT_PUBLIC_MOCK_MODE=false 濡?蹂寃? *   NEXT_PUBLIC_API_URL=http://localhost:5000 ?뺤씤
+ * Backend contract:
+ * - Success wrapper: { success, data, message, timestamp }
+ * - Error wrapper: { success, error, code, status, message, timestamp }
+ * - MOCK_MODE=true returns lib/mock.ts data without a backend.
+ * - MOCK_MODE=false calls the Flask API with the same data shape.
  *
- * ?꾨찓?몃퀎 ?⑥닔 洹몃９:
- *   userApi       ???좎? ?꾨줈?? *   danceApi      ???덈Т 紐⑸줉
- *   sessionApi    ???곗뒿 ?몄뀡 ?쒖옉/醫낅즺
- *   reportApi     ???ㅻ떟 ?명듃 由ы룷?? *   replayApi     ??由ы뵆?덉씠 ?꾨젅?? *   avatarApi     ???꾨컮? ?뚮뜑
- * ?????????????????????????????????????????????????????????????????
+ * To connect the real backend:
+ *   NEXT_PUBLIC_MOCK_MODE=false
+ *   NEXT_PUBLIC_API_URL=http://localhost:5000
  */
 
 import type {
@@ -56,18 +54,13 @@ import {
   createMockSessionFrames,
 } from './mock'
 
-// ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??// ?ㅼ젙
-// ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
 
-/**
- * MOCK_MODE ?뚮옒洹? * true  ??mock ?곗씠???ъ슜 (諛깆뿏???놁씠 媛쒕컻)
- * false ???ㅼ젣 Flask API ?몄텧
- */
+/** true: mock data, false: real Flask API. */
 const MOCK_MODE =
   (process.env.NEXT_PUBLIC_MOCK_MODE ?? 'true') === 'true'
 
-/** mock API 吏???쒕??덉씠??(ms) */
+/** Simulated network delay for mock mode. */
 const MOCK_DELAY = 400
 
 const ACCESS_TOKEN_KEY = 'kpop_dance_access_token'
@@ -143,6 +136,7 @@ async function apiFetch<T>(
       success: false,
       error: `HTTP ${res.status}`,
       status: res.status,
+      timestamp: new Date().toISOString(),
     }
     // Flask?먯꽌 JSON ?먮윭 硫붿떆吏瑜?諛섑솚?섎㈃ ?뚯떛
     try {
@@ -192,6 +186,7 @@ async function apiUpload<T>(path: string, formData: FormData): Promise<ApiRespon
       success: false,
       error: `HTTP ${res.status}`,
       status: res.status,
+      timestamp: new Date().toISOString(),
     }
     try {
       const body = await res.json()
@@ -273,9 +268,9 @@ export const danceApi = {
 // ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
 export const sessionApi = {
   /**
-   * ?곗뒿 ?몄뀡 ?쒖옉
+   * Practice session start.
    * POST /api/session/start
-   * ??session_id, ws_url, dance_reference 諛섑솚
+   * TODO(real API): return session_id, stream_url, dance_reference.
    */
   async start(req: StartSessionRequest): Promise<StartSessionResponse> {
     if (MOCK_MODE) {
@@ -287,13 +282,14 @@ export const sessionApi = {
   },
 
   /**
-   * ?곗뒿 ?몄뀡 醫낅즺
+   * Practice session end.
    * POST /api/session/end
-   * ??理쒖쥌 ?먯닔 + ?ㅻ떟 ?명듃 由ы룷??諛섑솚
+   * TODO(real API): persist final frames and return session + analysis report.
    */
   async end(req: EndSessionRequest): Promise<EndSessionResponse> {
     if (MOCK_MODE) {
-      await delay(MOCK_DELAY * 2)  // 遺꾩꽍 ?쒓컙 ?쒕??덉씠??      return createMockEndSessionResponse(req.session_id, 1)
+      await delay(MOCK_DELAY * 2)
+      return createMockEndSessionResponse(req.session_id, 1)
     }
     const res = await apiPost<EndSessionResponse>('/api/session/end', req)
     return res.data

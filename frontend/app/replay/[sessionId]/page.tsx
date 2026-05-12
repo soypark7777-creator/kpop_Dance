@@ -17,6 +17,7 @@ import Link             from 'next/link'
 import { useDanceStore, useReplayState } from '@/store/danceStore'
 import { ReplayTimeline }               from '@/components/ReplayTimeline'
 import { BottomNav }                    from '@/components/BottomNav'
+import { api }                          from '@/lib/api'
 
 import {
   createMockSessionFrames,
@@ -207,12 +208,30 @@ export default function ReplayPage() {
   const speedRef = useRef(speed)
   useEffect(() => { speedRef.current = speed }, [speed])
 
-  // ── 1. Mock 프레임 초기화 ────────────────────────────────
+  // ── 1. 리플레이 프레임 초기화 ─────────────────────────────
   useEffect(() => {
-    const mockFrames = createMockSessionFrames(sessionId)
-    setReplayFrames(mockFrames)
-    setReplayStatus('idle')
-    setCurrentReplayFrameIndex(0)
+    let active = true
+
+    // TODO(real API): GET /api/session/:sessionId/frames should return SessionFrame[] from session_frames.
+    api.replay.getFrames(sessionId)
+      .then((apiFrames) => {
+        if (active) {
+          setReplayFrames(apiFrames)
+          setReplayStatus('idle')
+          setCurrentReplayFrameIndex(0)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setReplayFrames(createMockSessionFrames(sessionId))
+          setReplayStatus('idle')
+          setCurrentReplayFrameIndex(0)
+        }
+      })
+
+    return () => {
+      active = false
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 

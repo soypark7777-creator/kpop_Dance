@@ -14,5 +14,5 @@ def health_check():
         "status": "ok",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
-    return success_response(data=data)
+    return success_response(data=data, message="server ok")
 

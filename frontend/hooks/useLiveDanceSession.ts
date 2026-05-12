@@ -6,7 +6,7 @@
  * 역할:
  * 1. 카메라 권한 요청 및 미디어 스트림 초기화
  * 2. sessionApi.start() 호출 → session_id 발급
- * 3. useWebSocketDance.connect() 호출 → 실시간 분석 시작
+ * 3. useWebSocketDance.connect() 호출 → SSE 실시간 분석 시작
  * 4. 일시정지 / 재개 처리
  * 5. sessionApi.end() 호출 → 분석 리포트 수신 → store에 저장
  * 6. 언마운트 시 카메라 / WebSocket 정리
@@ -218,13 +218,14 @@ export function useLiveDanceSession(): UseLiveDanceSessionReturn {
         }
 
         // 2. 백엔드에 세션 시작 요청
+        // TODO(real API): POST /api/session/start must return session_id and stream_url.
         setPracticeStatus('ready')
         const response = await sessionApi.start({ dance_reference_id: danceReferenceId })
         const sessionId = response.session_id
         currentSessionIdRef.current = sessionId
         setSessionId(sessionId)
 
-        // 3. 카운트다운 후 WebSocket 연결 + 녹화 시작
+        // 3. 카운트다운 후 SSE 연결 + 녹화 시작
         startCountdown(() => {
           setPracticeStatus('recording')
           connect(sessionId)
@@ -270,6 +271,7 @@ export function useLiveDanceSession(): UseLiveDanceSessionReturn {
     clearCountdown()
 
     try {
+      // TODO(real API): POST /api/session/end should persist analysis_reports before navigation.
       const response = await sessionApi.end({ session_id: sessionId })
 
       // store에 결과 저장

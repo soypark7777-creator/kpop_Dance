@@ -23,6 +23,7 @@ import { ScoreBar } from '@/components/ScoreBar'
 import { ErrorJointBadge } from '@/components/ErrorJointBadge'
 import { MobileBottomControls } from '@/components/MobileBottomControls'
 import { MOCK_DANCE_REFERENCES } from '@/lib/mock'
+import { api } from '@/lib/api'
 import type { DanceReference } from '@/lib/types'
 import { DIFFICULTY_LABEL, DIFFICULTY_COLOR } from '@/lib/types'
 
@@ -31,10 +32,11 @@ import { DIFFICULTY_LABEL, DIFFICULTY_COLOR } from '@/lib/types'
 // ════════════════════════════════════════════════════
 
 interface DanceSelectProps {
+  dances: DanceReference[]
   onSelect: (dance: DanceReference) => void
 }
 
-function DanceSelectScreen({ onSelect }: DanceSelectProps) {
+function DanceSelectScreen({ dances, onSelect }: DanceSelectProps) {
   const DIFFICULTY_ICON: Record<string, string> = {
     easy: '🟢', normal: '🟡', hard: '🟠', expert: '🔴',
   }
@@ -76,7 +78,7 @@ function DanceSelectScreen({ onSelect }: DanceSelectProps) {
 
       {/* 안무 카드 목록 */}
       <div className="flex-1 overflow-y-auto px-5 pb-10 space-y-3">
-        {MOCK_DANCE_REFERENCES.map((dance) => {
+        {dances.map((dance) => {
           const accentColor = ARTIST_COLORS[dance.artist_name] ?? '#b041ff'
           const diffColor = DIFFICULTY_COLOR[dance.difficulty]
           return (
@@ -573,17 +575,35 @@ function PracticePageInner() {
   const danceIdParam = searchParams.get('danceId')
 
   const { setSelectedDance, selectedDance } = useDanceStore()
+  const [danceReferences, setDanceReferences] = useState<DanceReference[]>(MOCK_DANCE_REFERENCES)
+
+  useEffect(() => {
+    let active = true
+
+    // TODO(real API): GET /api/dance-references should return the same DanceReference shape as MOCK_DANCE_REFERENCES.
+    api.dance.getAll()
+      .then((items) => {
+        if (active) setDanceReferences(items)
+      })
+      .catch(() => {
+        if (active) setDanceReferences(MOCK_DANCE_REFERENCES)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   // URL 파라미터로 안무 미리 선택
   useEffect(() => {
     if (danceIdParam) {
       const id = parseInt(danceIdParam, 10)
-      const found = MOCK_DANCE_REFERENCES.find((d) => d.id === id)
+      const found = danceReferences.find((d) => d.id === id)
       if (found && (!selectedDance || selectedDance.id !== found.id)) {
         setSelectedDance(found)
       }
     }
-  }, [danceIdParam, setSelectedDance, selectedDance])
+  }, [danceIdParam, danceReferences, setSelectedDance, selectedDance])
 
   const handleSelectDance = useCallback(
     (dance: DanceReference) => {
@@ -597,7 +617,7 @@ function PracticePageInner() {
   }, [setSelectedDance])
 
   if (!selectedDance) {
-    return <DanceSelectScreen onSelect={handleSelectDance} />
+    return <DanceSelectScreen dances={danceReferences} onSelect={handleSelectDance} />
   }
 
   return <PracticeScreen dance={selectedDance} onExit={handleExit} />

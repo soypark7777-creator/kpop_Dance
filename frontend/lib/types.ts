@@ -352,6 +352,7 @@ export interface ApiResponse<T> {
   success: true
   data: T
   message?: string
+  timestamp: string
 }
 
 export interface ApiError {
@@ -359,6 +360,8 @@ export interface ApiError {
   error: string
   code?: string
   status?: number
+  message?: string
+  timestamp: string
 }
 
 export type ApiResult<T> = ApiResponse<T> | ApiError
@@ -372,7 +375,8 @@ export interface StartSessionRequest {
 export interface StartSessionResponse {
   session_id: string
   dance_reference: DanceReference
-  ws_url: string    // WebSocket 연결 URL
+  stream_url: string // SSE 연결 URL: GET /api/stream/live?session_id=...
+  ws_url?: string    // legacy alias. 1차 계약은 SSE(stream_url)를 기준으로 함.
   started_at: string
 }
 
@@ -516,7 +520,7 @@ export interface AdminUploadJob {
 }
 
 // ═══════════════════════════════════════════════════════
-// 14. WEBSOCKET MESSAGE TYPES
+// 14. LEGACY STREAM MESSAGE TYPES
 // ═══════════════════════════════════════════════════════
 
 export type WsMessageType =
@@ -574,7 +578,7 @@ export type PracticeStatus =
 /** replay 페이지의 재생 상태 */
 export type ReplayStatus = 'idle' | 'playing' | 'paused' | 'ended'
 
-/** WebSocket 연결 상태 */
+/** 실시간 스트림 연결 상태. 이름은 legacy로 ws를 유지하지만 1차 구현은 SSE(EventSource) 기준. */
 export type WsConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 // ═══════════════════════════════════════════════════════

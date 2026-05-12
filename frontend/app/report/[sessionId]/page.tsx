@@ -14,6 +14,7 @@ import { useDanceStore } from '@/store/danceStore'
 
 async function fetchReportFromApi(sessionId: string): Promise<AnalysisReport | null> {
   try {
+    // TODO(real API): GET /api/analysis/:sessionId must return AnalysisReport with section_scores and report_json.
     return await api.report.getBySessionId(sessionId)
   } catch {
     return null

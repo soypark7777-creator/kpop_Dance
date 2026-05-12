@@ -1,5 +1,10 @@
 import os
 
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
 
 class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
@@ -21,7 +26,15 @@ class BaseConfig:
         "mysql+pymysql://root:password@localhost:3306/avatar_dance_db?charset=utf8mb4",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    CORS_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:3000,http://127.0.0.1:3000",
+        ).split(",")
+        if origin.strip()
+    ]
+    API_PUBLIC_BASE_URL = os.getenv("API_PUBLIC_BASE_URL", "http://127.0.0.1:5000")
 
 
 class DevelopmentConfig(BaseConfig):

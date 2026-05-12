@@ -18,3 +18,5 @@ class SessionFrame(TimestampMixin, BaseModel):
     timestamp_seconds = db.Column(db.Numeric(10, 3), nullable=False)
     pose_json = db.Column(db.JSON, nullable=True)
     score = db.Column(db.Numeric(5, 2), nullable=True)
+
+    session = db.relationship("PracticeSession", backref="frames", lazy="select")

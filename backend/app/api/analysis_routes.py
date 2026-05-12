@@ -1,13 +1,12 @@
 from flask import Blueprint
-from sqlalchemy.orm import selectinload
 
 from ..extensions import db
-from ..models import PracticeSession, SessionFrame
+from ..models import SessionFrame
 from ..services.analysis_service import serialize_analysis_report, upsert_analysis_report
 from ..services.session_service import (
     finalize_demo_session,
+    get_session_by_identifier,
     get_demo_state,
-    parse_session_id,
 )
 from ..utils.response import error_response, success_response
 
@@ -25,15 +24,7 @@ def get_analysis(session_id: str):
                 return error_response("session not found", status_code=404, code="SESSION_NOT_FOUND")
         return success_response(data=demo_state.report)
 
-    parsed_session_id = parse_session_id(session_id)
-    if parsed_session_id is None:
-        return error_response("session not found", status_code=404, code="SESSION_NOT_FOUND")
-
-    session = (
-        PracticeSession.query.filter_by(id=parsed_session_id)
-        .options(selectinload(PracticeSession.dance_reference))
-        .first()
-    )
+    session = get_session_by_identifier(session_id)
     if session is None:
         return error_response("session not found", status_code=404, code="SESSION_NOT_FOUND")
 

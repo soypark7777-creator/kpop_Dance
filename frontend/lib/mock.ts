@@ -156,11 +156,13 @@ export function createMockStartSessionResponse(
 ): StartSessionResponse {
   const dance = MOCK_DANCE_REFERENCES.find((d) => d.id === danceReferenceId)
     ?? MOCK_DANCE_REFERENCES[0]
+  const sessionId = `mock_session_${Date.now()}`
 
   return {
-    session_id: `mock_session_${Date.now()}`,
+    session_id: sessionId,
     dance_reference: dance,
-    ws_url: 'ws://localhost:5000/ws/live',  // mock에서는 사용 안 함
+    stream_url: `http://localhost:5000/api/stream/live?session_id=${sessionId}`,
+    ws_url: 'ws://localhost:5000/ws/live',  // legacy alias. mock에서는 사용 안 함
     started_at: new Date().toISOString(),
   }
 }
